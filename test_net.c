@@ -37,6 +37,7 @@ int client_exchange_info(struct rdma_conn *conn) {
     int send_size, bytes;
     void *info, *peerinfo = NULL;
 
+    printf("connecting to server %s...\n", config.server_url);
     if ((sock = nn_socket(AF_SP, NN_REQ)) < 0) {
         fatal("nn_socket");
     }
