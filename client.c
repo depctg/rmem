@@ -2,6 +2,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+
 #include "test.h"
 
 static int client_simple_write(struct rdma_conn *conn);
@@ -18,7 +21,7 @@ int client() {
     // Create PD
     conn.pd = ibv_alloc_pd(conn.context);
     if (conn.pd == NULL) {
-        printf("iDIE");
+        printf("create pd fail");
         return -1;
     }
 
@@ -53,6 +56,12 @@ int client() {
 
 static int client_simple_write(struct rdma_conn *conn){
     int ret;
+    struct timespec tstart={0,0}, tend={0,0};
+    struct ibv_wc wc;
+    int bytes;
+
+    // put tings into buffer
+    memcpy(conn->mr[0].addr, "This is a message!xxxxxxxxxA", 16);
 
     // SGE for request, we use only 1
     struct ibv_sge* sge = (struct ibv_sge *)calloc(1, sizeof(struct ibv_sge));
@@ -60,7 +69,7 @@ static int client_simple_write(struct rdma_conn *conn){
     sge->length = config.request_size;
     sge->lkey = conn->mr[0].lkey;
 
-    struct ibv_send_wr wr;
+    struct ibv_send_wr wr, *badwr = NULL;
     memset(&wr, 0, sizeof(wr));
     // user tag
     wr.wr_id = 233;
@@ -74,19 +83,28 @@ static int client_simple_write(struct rdma_conn *conn){
     wr.send_flags = IBV_SEND_SIGNALED;
     wr.next = NULL;
 
-    // post send
-    // TODO: add time here
-    ret = ibv_post_send(conn->qp, &wr, NULL);
+    for (int i = 0; i < 1024; i++) {
+        wr.wr.rdma.remote_addr += 64;
 
-    // PULL for result...
-    struct ibv_wc wc;
-    int bytes;
+        clock_gettime(CLOCK_MONOTONIC, &tstart);
+        ret = ibv_post_send(conn->qp, &wr, &badwr);
+        if (ret != 0) {
+            printf("POST SEND FAIL\n");
+        }
 
-    while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) ;
-    // TODO: add time here
+        // PULL for result...
+        while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
+            // sleep(1);
+        }
+        clock_gettime(CLOCK_MONOTONIC, &tend);
+        uint64_t ns = (uint64_t) tend.tv_sec * 1000000000ULL -
+                      (uint64_t) tstart.tv_sec * 1000000000ULL +
+                      tend.tv_nsec - tstart.tv_nsec;
 
-    if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
-        printf("GET REPLY!\n");
+        if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
+            printf("Write %d bytes, latency %lu ns\n", config.request_size, ns);
+        }
+        sleep(0.5);
     }
     
     free(sge);

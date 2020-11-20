@@ -5,7 +5,7 @@ LD      := gcc
 LDLIBS  := ${LDLIBS} -libverbs -lpthread -lnanomsg
 
 APPS    := client server
-COMMON  := test_config.o test_net.o common.o
+COMMON  := config.o net.o common.o
 
 all: ${APPS}
 

@@ -35,16 +35,20 @@ struct config {
     int cq_size;
 
     // Memory region
-    int client_mr_size;
+    size_t client_mr_size;
 
     int server_num_mr;
-    int server_mr_size;
+    size_t server_mr_size;
 
     struct epinfo server, client;
 
     // test
     int request_size;
     char * server_url;
+    char * server_listen_url;
+
+    int server_enable_odp;
+    int server_multi_conn;
 };
 
 extern struct config config;

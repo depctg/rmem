@@ -18,7 +18,7 @@ int create_context(struct epinfo *ep, struct rdma_conn *conn) {
 
     ibv_free_device_list(device_list);
     if (conn->context == NULL) {
-        printf("iDIE");
+        printf("create context fail\n");
         return -1;
     }
 }
@@ -32,11 +32,13 @@ int create_qp(struct rdma_conn *conn) {
     qp_init.recv_cq = conn->cq;         // completion queue for sq
     qp_init.cap.max_send_wr = 1; 
     qp_init.cap.max_recv_wr = 1;
+    qp_init.cap.max_send_sge = 1;
+    qp_init.cap.max_recv_sge = 1;
     // TODO: set other ATTRs
 
     conn->qp = ibv_create_qp(conn->pd, &qp_init);
     if (conn->qp == NULL) {
-        printf("iDIE");
+        printf("create qp fail\n");
         return -1;
     }
 }
@@ -60,10 +62,13 @@ int create_mr(struct rdma_conn *conn, int size, int access) {
 
     conn->num_mr += 1;
     conn->mr = reallocarray(conn->mr, conn->num_mr, sizeof(struct ibv_mr));
+    memcpy(conn->mr + conn->num_mr - 1, mr, sizeof(struct ibv_mr));
     if (conn->mr == NULL) {
-        printf("realloc fail");
+        printf("realloc fail\n");
         return -1;
     }
+
+    printf("CREATE MR ... %d = %p\n", conn->num_mr, conn->mr[0].addr);
 
     return 0;
 }
@@ -81,7 +86,7 @@ int qp_stm_reset_to_init(struct rdma_conn *conn) {
     // TODO: match here with attrs
     ret = ibv_modify_qp(conn->qp, &qp_attr, IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS);
     if (ret != 0) {
-        printf("init fail");
+        printf("init fail %d\n", ret);
         return -1;
     }
     return 0;
@@ -110,7 +115,7 @@ int qp_stm_init_to_rtr(struct rdma_conn *conn) {
     ret = ibv_modify_qp(conn->qp, &qp_attr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER);
 
     if (ret != 0) {
-        printf("rtr fail");
+        printf("rtr fail\n");
         return -1;
     }
 
@@ -125,9 +130,14 @@ int qp_stm_rtr_to_rts(struct rdma_conn *conn) {
 
     qp_attr.qp_state = IBV_QPS_RTS;
     qp_attr.sq_psn = 0;
-    ret = ibv_modify_qp(conn->qp, &qp_attr, IBV_QP_STATE | IBV_QP_SQ_PSN);
+    qp_attr.timeout = 16; // See doc
+    qp_attr.retry_cnt      = 7;
+    qp_attr.rnr_retry      = 7; /* infinite */
+    qp_attr.max_rd_atomic  = 1;
+
+    ret = ibv_modify_qp(conn->qp, &qp_attr, IBV_QP_STATE | IBV_QP_SQ_PSN | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY | IBV_QP_MAX_QP_RD_ATOMIC);
     if (ret != 0) {
-        printf("rts fail");
+        printf("rts fail\n");
         return -1;
     }
 
