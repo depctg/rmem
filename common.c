@@ -62,13 +62,14 @@ int create_mr(struct rdma_conn *conn, int size, int access) {
 
     conn->num_mr += 1;
     conn->mr = reallocarray(conn->mr, conn->num_mr, sizeof(struct ibv_mr));
-    memcpy(conn->mr + conn->num_mr - 1, mr, sizeof(struct ibv_mr));
     if (conn->mr == NULL) {
         printf("realloc fail\n");
         return -1;
     }
 
-    printf("CREATE MR ... %d = %p\n", conn->num_mr, conn->mr[0].addr);
+    memcpy(conn->mr + conn->num_mr - 1, mr, sizeof(struct ibv_mr));
+
+    // printf("CREATE MR ... %d = %p\n", conn->num_mr, mr->addr);
 
     return 0;
 }

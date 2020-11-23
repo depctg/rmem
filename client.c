@@ -83,6 +83,7 @@ static int client_simple_write(struct rdma_conn *conn){
     wr.send_flags = IBV_SEND_SIGNALED;
     wr.next = NULL;
 
+#if 0
     for (int i = 0; i < 1024; i++) {
         wr.wr.rdma.remote_addr += 64;
 
@@ -106,6 +107,37 @@ static int client_simple_write(struct rdma_conn *conn){
         }
         sleep(0.5);
     }
+#endif
+
+#if 1
+    int num_send = 1024*16;
+    for (int i = 0; i < num_send; i++) {
+        int idx = num_send % conn->peerinfo->num_mr;
+        wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[idx].addr;
+        wr.wr.rdma.rkey = conn->peerinfo->mr[idx].rkey;
+
+        clock_gettime(CLOCK_MONOTONIC, &tstart);
+        ret = ibv_post_send(conn->qp, &wr, &badwr);
+        if (ret != 0) {
+            printf("POST SEND FAIL\n");
+        }
+
+        // PULL for result...
+        while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
+            // sleep(1);
+        }
+        clock_gettime(CLOCK_MONOTONIC, &tend);
+        uint64_t ns = (uint64_t) tend.tv_sec * 1000000000ULL -
+                      (uint64_t) tstart.tv_sec * 1000000000ULL +
+                      tend.tv_nsec - tstart.tv_nsec;
+
+        if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
+            // printf("Write %d bytes, latency %lu ns\n", config.request_size, ns);
+            printf("%lu\n", ns);
+        }
+        sleep(0.5);
+    }
+#endif
     
     free(sge);
 }
