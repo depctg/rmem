@@ -22,6 +22,7 @@ struct conn_info {
     uint16_t qp_number;
 
     int num_mr;
+    union ibv_gid gid;
     struct ibv_mr mr[0];
 };
 
@@ -33,6 +34,10 @@ struct epinfo {
 
 struct config {
     int cq_size;
+
+    // gloabl config
+    int use_roce;
+    int gid_idx;
 
     // Memory region
     size_t client_mr_size;

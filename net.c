@@ -20,11 +20,17 @@ static int extract_info(struct rdma_conn *conn, void **buf) {
     *buf = calloc(1, info_size);
     struct conn_info *info = (struct conn_info*) *buf;
 
-    struct ibv_port_attr port_attr;
-    ibv_query_port(conn->context, conn->port, &port_attr);
+    if (config.use_roce) {
+        union ibv_gid gid;
+        ibv_query_gid(conn->context, conn->port, config.gid_idx, &gid);
+        info->gid = gid;
+    } else {
+        struct ibv_port_attr port_attr;
+        ibv_query_port(conn->context, conn->port, &port_attr);
+        info->local_id = port_attr.lid;
+    }
 
     info->port = conn->port;
-    info->local_id = port_attr.lid;
     info->qp_number = conn->qp->qp_num;
     info->num_mr = conn->num_mr;
     if (conn->num_mr != 0) 
