@@ -1,4 +1,5 @@
-for i in $(seq 1 512)  
+mkdir -p $1
+for i in $(seq 1 $2)  
 do   
-    ./client &
+    ~/rdma-test/rdma-test/client > $1/$i.result&
 done

@@ -6,17 +6,24 @@
 
 
 int create_context(struct epinfo *ep, struct rdma_conn *conn) {
-    int num_devices = ep->num_devices;
-    char * device_name = ep->device_name;
-    struct ibv_device** device_list = ibv_get_device_list(&num_devices);
-    for (int i = 0; i < num_devices; i++){
-        if (strcmp(device_name, ibv_get_device_name(device_list[i])) == 0) {
-            conn->context = ibv_open_device(device_list[i]);
-            break;
+    static struct ibv_context *context = NULL;
+
+    // TODO: add option to reuse context
+    if (context == NULL) {
+        int num_devices = ep->num_devices;
+        char * device_name = ep->device_name;
+        struct ibv_device** device_list = ibv_get_device_list(&num_devices);
+        for (int i = 0; i < num_devices; i++){
+            if (strcmp(device_name, ibv_get_device_name(device_list[i])) == 0) {
+                context = ibv_open_device(device_list[i]);
+                break;
+            }
         }
+
+        ibv_free_device_list(device_list);
     }
 
-    ibv_free_device_list(device_list);
+    conn->context = context;
     if (conn->context == NULL) {
         printf("create context fail\n");
         return -1;
@@ -43,20 +50,20 @@ int create_qp(struct rdma_conn *conn) {
     }
 }
 
-int create_mr(struct rdma_conn *conn, int size, int access) {
+int create_mr(struct rdma_conn *conn, size_t size, int access) {
 
     int ret;
     void * buffer = malloc(size);
     struct ibv_mr *mr;
 
     if (buffer == NULL) {
-        printf("malloc fail");
+        printf("malloc fail\n");
         return -1;
     }
 
     mr = ibv_reg_mr(conn->pd, buffer, size, access);
     if (mr == NULL) {
-        printf("register MR fail");
+        printf("register MR fail\n");
         return -1;
     }
 
@@ -151,4 +158,29 @@ int qp_stm_rtr_to_rts(struct rdma_conn *conn) {
     }
 
     return 0;
+}
+
+int extract_info(struct rdma_conn *conn, void **buf) {
+
+    int info_size = sizeof(struct conn_info) + conn->num_mr * sizeof(struct ibv_mr);
+    *buf = calloc(1, info_size);
+    struct conn_info *info = (struct conn_info*) *buf;
+
+    if (config.use_roce) {
+        union ibv_gid gid;
+        ibv_query_gid(conn->context, conn->port, config.gid_idx, &gid);
+        info->gid = gid;
+    } else {
+        struct ibv_port_attr port_attr;
+        ibv_query_port(conn->context, conn->port, &port_attr);
+        info->local_id = port_attr.lid;
+    }
+
+    info->port = conn->port;
+    info->qp_number = conn->qp->qp_num;
+    info->num_mr = conn->num_mr;
+    if (conn->num_mr != 0) 
+        memcpy(&info->mr, conn->mr, conn->num_mr * sizeof(struct ibv_mr));
+
+    return info_size;
 }

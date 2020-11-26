@@ -45,6 +45,8 @@ struct config {
     int server_num_mr;
     size_t server_mr_size;
 
+    int share_mr;
+
     struct epinfo server, client;
 
     // test
@@ -68,10 +70,12 @@ int parse_config(int argc, char *argv[]);
 // common helper for rdma, may move to common.h later
 int create_context(struct epinfo *ep, struct rdma_conn *conn);
 int create_qp(struct rdma_conn *conn);
-int create_mr(struct rdma_conn *conn, int size, int access);
+int create_mr(struct rdma_conn *conn, size_t size, int access);
 //    QP state mahine functions
 int qp_stm_reset_to_init(struct rdma_conn *conn);
 int qp_stm_init_to_rtr(struct rdma_conn *conn);
 int qp_stm_rtr_to_rts(struct rdma_conn *conn);
+// network communication
+int extract_info(struct rdma_conn *conn, void **buf);
 
 #endif

@@ -14,7 +14,8 @@ int parse_config(int argc, char *argv[]) {
     config.client_mr_size = 4096;
     // config.server_num_mr = 1024 * 8;
     config.server_num_mr = 1;
-    config.server_mr_size = 8192;
+    // config.server_mr_size = (size_t)1024 * 1024 * 1024;
+    config.server_mr_size = 4096 * 8;
 
     // set ib info
     config.server.num_devices = 2;
