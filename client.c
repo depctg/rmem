@@ -84,74 +84,76 @@ static int client_simple_write(struct rdma_conn *conn){
     wr.next = NULL;
 
 // PTE MISSES
-#if 0
+// MR SIZE = 1G
+// num_MR = 16
 
-    int page_interval = 16;
+    if (strcmp(config.client_program, "lat_pte_miss") == 0) {
+        int page_interval = 16;
 
-    uint64_t num_pages = config.server_mr_size / 4096;
-    uint64_t num_loops = config.server_num_mr * num_pages * 4;
-    uint64_t per_region_loops = num_pages / page_interval;
-    printf("accessing length %ld [%p]\n", conn->peerinfo->mr[0].length, conn->peerinfo->mr[0].addr);
-    printf("trying to access on %lu pages, with total %lu accesses\n", num_pages, num_loops);
+        uint64_t num_pages = config.server_mr_size / 4096;
+        uint64_t num_loops = config.server_num_mr * num_pages * 4;
+        uint64_t per_region_loops = num_pages / page_interval;
+        printf("accessing length %ld [%p]\n", conn->peerinfo->mr[0].length, conn->peerinfo->mr[0].addr);
+        printf("trying to access on %lu pages, with total %lu accesses\n", num_pages, num_loops);
 
-    for (uint64_t i = 0; i < num_loops; i++) {
-        if (i % per_region_loops == 0) {
-            int round = (int)(i / per_region_loops);
-            int region = round % conn->peerinfo->num_mr;
-            printf("start round %d, region %d\n", round, region);
-            wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[region].addr;
-            wr.wr.rdma.rkey = conn->peerinfo->mr[region].rkey;
-        } else
-            wr.wr.rdma.remote_addr += (uint64_t)4096 * page_interval;
+        for (uint64_t i = 0; i < num_loops; i++) {
+            if (i % per_region_loops == 0) {
+                int round = (int)(i / per_region_loops);
+                int region = round % conn->peerinfo->num_mr;
+                printf("start round %d, region %d\n", round, region);
+                wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[region].addr;
+                wr.wr.rdma.rkey = conn->peerinfo->mr[region].rkey;
+            } else
+                wr.wr.rdma.remote_addr += (uint64_t)4096 * page_interval;
 
-        clock_gettime(CLOCK_MONOTONIC, &tstart);
-        ibv_post_send(conn->qp, &wr, &badwr);
+            clock_gettime(CLOCK_MONOTONIC, &tstart);
+            ibv_post_send(conn->qp, &wr, &badwr);
 
-        // PULL for result...
-        while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
-            // sleep(1);
-        }
-        clock_gettime(CLOCK_MONOTONIC, &tend);
-        uint64_t ns = (uint64_t) tend.tv_sec * 1000000000ULL -
-                      (uint64_t) tstart.tv_sec * 1000000000ULL +
-                      tend.tv_nsec - tstart.tv_nsec;
+            // PULL for result...
+            while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
+                // sleep(1);
+            }
+            clock_gettime(CLOCK_MONOTONIC, &tend);
+            uint64_t ns = (uint64_t) tend.tv_sec * 1000000000ULL -
+                          (uint64_t) tstart.tv_sec * 1000000000ULL +
+                          tend.tv_nsec - tstart.tv_nsec;
 
-        if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
-            printf("%lu\n", ns);
+            if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
+                printf("%lu\n", ns);
+            }
         }
     }
-#endif
 
-// mr misses
-#if 1
-    uint64_t num_send = 1024*512;
-    for (uint64_t i = 0; i < num_send; i++) {
-        int idx = num_send % conn->peerinfo->num_mr;
-        wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[idx].addr;
-        wr.wr.rdma.rkey = conn->peerinfo->mr[idx].rkey;
+    if (strcmp(config.client_program, "lat_mr_miss") == 0) {
 
-        clock_gettime(CLOCK_MONOTONIC, &tstart);
-        ret = ibv_post_send(conn->qp, &wr, &badwr);
-        if (ret != 0) {
-            printf("POST SEND FAIL\n");
+        uint64_t num_send = 1024*256;
+        for (uint64_t i = 0; i < num_send; i++) {
+            int idx = num_send % conn->peerinfo->num_mr;
+            wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[idx].addr;
+            wr.wr.rdma.rkey = conn->peerinfo->mr[idx].rkey;
+
+            clock_gettime(CLOCK_MONOTONIC, &tstart);
+            ret = ibv_post_send(conn->qp, &wr, &badwr);
+            if (ret != 0) {
+                printf("POST SEND FAIL\n");
+            }
+
+            // PULL for result...
+            while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
+                // sleep(1);
+            }
+            clock_gettime(CLOCK_MONOTONIC, &tend);
+            uint64_t ns = (uint64_t) tend.tv_sec * 1000000000ULL -
+                          (uint64_t) tstart.tv_sec * 1000000000ULL +
+                          tend.tv_nsec - tstart.tv_nsec;
+
+            if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
+                // printf("Write %d bytes, latency %lu ns\n", config.request_size, ns);
+                printf("%lu\n", ns);
+            }
+            usleep(10);
         }
-
-        // PULL for result...
-        while ((bytes = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
-            // sleep(1);
-        }
-        clock_gettime(CLOCK_MONOTONIC, &tend);
-        uint64_t ns = (uint64_t) tend.tv_sec * 1000000000ULL -
-                      (uint64_t) tstart.tv_sec * 1000000000ULL +
-                      tend.tv_nsec - tstart.tv_nsec;
-
-        if (bytes > 0 && wc.status == IBV_WC_SUCCESS) {
-            // printf("Write %d bytes, latency %lu ns\n", config.request_size, ns);
-            printf("%lu\n", ns);
-        }
-        usleep(10);
     }
-#endif
     
     free(sge);
 }

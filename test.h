@@ -56,6 +56,8 @@ struct config {
 
     int server_enable_odp;
     int server_multi_conn;
+
+    char * client_program;
 };
 
 extern struct config config;

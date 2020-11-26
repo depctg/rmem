@@ -1,11 +1,11 @@
 from glob import glob
 
-for conn in range(100, 1100, 100):
+dirs = [',']
 
-    resultDir = "conn" + str(conn)
-    startLine = 1024
-    endLine = 1024*3
+startLine = 1024
+endLine = 1024*3
 
+for resultDir in dirs:
     results = glob(resultDir + '/*.result')
     avgs = []
     for result in results:
@@ -17,4 +17,4 @@ for conn in range(100, 1100, 100):
             avg = sum(lines) / length
             avgs.append(avg)
 
-    print("{}: AVG {}".format(resultDir, sum(avgs)/len(avg)))
+    print("{}: AVG {}".format(resultDir, sum(avgs)/len(avgs)))
