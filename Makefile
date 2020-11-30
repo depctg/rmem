@@ -5,7 +5,7 @@ RMEMIMPL ?= rmem-rdma.c
 
 CFLAGS  := -Werror -g
 LD      := gcc
-LDLIBS  := ${LDLIBS} -libverbs -lpthread -lnng
+LDLIBS  := ${LDLIBS} -libverbs -lpthread -lnng -ljpeg
 
 APPS    := arrayclient arrayserver
 COMMON  := config.o common.o rarray.o $(NETLIB) $(RMEMIMPL)

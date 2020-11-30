@@ -61,7 +61,15 @@ struct config {
     int server_enable_odp;
     int server_multi_conn;
 
-    char * client_program;
+    char * program;
+
+    // application test
+    size_t array_cell_size;
+
+    char *server_rdma_read_url;
+    char *server_rdma_write_url;
+
+    int jpg_size;
 };
 
 extern struct config config;

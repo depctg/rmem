@@ -14,6 +14,7 @@ int create_context(struct epinfo *ep, struct rdma_conn *conn) {
         char * device_name = ep->device_name;
         struct ibv_device** device_list = ibv_get_device_list(&num_devices);
         for (int i = 0; i < num_devices; i++){
+            // printf("device %i, %s | %s\n", i, ibv_get_device_name(device_list[i]), device_name);
             if (strcmp(device_name, ibv_get_device_name(device_list[i])) == 0) {
                 context = ibv_open_device(device_list[i]);
                 break;
@@ -131,7 +132,7 @@ int qp_stm_init_to_rtr(struct rdma_conn *conn) {
     ret = ibv_modify_qp(conn->qp, &qp_attr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER);
 
     if (ret != 0) {
-        printf("rtr fail %d, roce %d\n", ret, gid);
+        printf("rtr fail %d, roce %d\n", ret, conn->gid);
         return -1;
     }
 

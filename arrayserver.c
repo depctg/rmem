@@ -5,6 +5,8 @@
 #include "test.h"
 #include <unistd.h>
 
+static struct rdma_conn static_conn;
+
 int server() {
 
     struct rdma_conn conn;
@@ -34,21 +36,36 @@ int server() {
     for (int i = 0; i < config.server_num_mr; i++)
         create_mr(&conn, config.server_mr_size, access);
 
+    // DO Extra job
+    if (config.program != NULL) {
+
+
+        if (strcmp("array-jpg", config.program) == 0) {
+            printf("Do server job %s ...\n", config.program);
+            int jpg_size = config.jpg_size;
+
+            int cells = config.server_mr_size / config.array_cell_size;
+
+            void * jpg = malloc(config.array_cell_size);
+            char * buf = conn.mr[0].addr;
+
+            FILE *jpg_file = fopen("./data/cat.jpg", "r");
+            fread(jpg, 1, jpg_size, jpg_file);
+            fclose(jpg_file);
+
+            for (int i = 0; i < cells; i++) {
+                memcpy(buf, jpg, jpg_size);
+                buf += config.array_cell_size;
+            }
+        }
+    }
+
     // Exchange with server
-    server_exchange_info(&conn);
+    server_exchange_info(&conn, config.server_listen_url);
 
     // Enable QP, server only need to get to RTR
     qp_stm_reset_to_init(&conn);
     qp_stm_init_to_rtr(&conn);
-
-    // serve here..
-    // for (;;) {}
-
-    // clean up
-    // for (int i = 0; i < conn.num_mr; i++) {
-    //     ibv_dereg_mr(conn.mr + i);
-    // }
-    // ibv_close_device(conn.context);
 
     return 0;
 }

@@ -1,6 +1,8 @@
 #ifndef _RARRAY_H_
 #define _RARRAY_H_
 
+#include "rmem.h"
+
 // array apis
 #define RARRAY_SZ_CELL 0
 

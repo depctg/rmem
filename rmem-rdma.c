@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "rmem.h"
 #include "test.h"
 
@@ -8,19 +11,12 @@
 struct remote_mem_rdma {
     struct remote_mem rmem;
     struct rdma_conn conn;
-}
+};
 
-static inline struct ibv_mr * get_remote_mr_by_addr(struct remote_mem_rmda * rmem) {
-    // TODO: for now, we always return mr 0;
-    if (rmem->conn->peerinfo && rmem->conn->peerinfo->num_mr != 0)
-        return rmem->conn->peerinfo->mr
-    else
-        return NULL
-}
 
 // Different kind of remote buffers will handle different MRs
 // parameter: target memory
-struct remote_mem * rinit(int access, void *args) {
+struct remote_mem * rinit(int access, size_t size, void *args) {
     struct remote_mem_rdma * rmem;
 
     // the target 
@@ -28,51 +24,54 @@ struct remote_mem * rinit(int access, void *args) {
 
     // TODO: check ROCE here?
     rmem = (struct remote_mem_rdma *)calloc(1, sizeof(struct remote_mem_rdma));
-    rmem->access = access;
+    rmem->rmem.access = access;
 
+    rmem->conn.port = config.client.port;
     if (config.use_roce)
-        rmem->conn.gid = config.gid;
+        rmem->conn.gid = config.gid_idx;
 
     // This port is rnic port
     rmem->conn.port = config.client.port;
 
     // TODO: goto common
-    create_context(&config.client, &conn);
+    create_context(&config.client, &rmem->conn);
 
     // Create PD
-    conn.pd = ibv_alloc_pd(conn.context);
-    if (conn.pd == NULL) {
+    rmem->conn.pd = ibv_alloc_pd(rmem->conn.context);
+    if (rmem->conn.pd == NULL) {
         printf("create pd fail");
-        return -1;
+        return NULL;
     }
 
     // Create CQ
-    conn.cq = ibv_create_cq(conn.context, config.cq_size, NULL, NULL, 0);
+    rmem->conn.cq = ibv_create_cq(rmem->conn.context, config.cq_size, NULL, NULL, 0);
 
     // Create QP
-    create_qp(&conn);
+    create_qp(&rmem->conn);
 
     // Exchange with server
-    client_exchange_info(&conn, url);
+    client_exchange_info(&rmem->conn, url);
 
     // Enable QP
-    qp_stm_reset_to_init(&conn);
-    qp_stm_init_to_rtr(&conn);
-    qp_stm_rtr_to_rts(&conn);
+    qp_stm_reset_to_init(&rmem->conn);
+    qp_stm_init_to_rtr(&rmem->conn);
+    qp_stm_rtr_to_rts(&rmem->conn);
 
     return (struct remote_mem *)rmem;
 }
 
-void * rcreatebuf (struct remote_mem * rmem, void *buf, size_t size) {
+void * rcreatebuf (struct remote_mem * _rmem, size_t size) {
     int ret;
+    struct remote_mem_rdma * rmem = (struct remote_mem_rdma *)_rmem;
 
     // We need a buffer at client side
+    // TODO: access?
     ret = create_mr(&rmem->conn, size, IBV_ACCESS_LOCAL_WRITE);
     if (ret != 0) {
-        return -1;
+        return NULL;
     }
 
-    return rmem->conn.mr[rmem->conn.num_mr - 1];
+    return rmem->conn.mr[rmem->conn.num_mr - 1].addr;
 }
 
 int rread (struct remote_mem * _rmem, void *buf, uint64_t addr, size_t size) {
@@ -82,12 +81,12 @@ int rread (struct remote_mem * _rmem, void *buf, uint64_t addr, size_t size) {
     struct ibv_mr * mr;
     struct ibv_send_wr wr, *badwr = NULL;
 
-    struct rdma_conn *conn = &((struct remote_mem_rdma *)rmem)->conn;
+    struct rdma_conn *conn = &((struct remote_mem_rdma *)_rmem)->conn;
 
+    // TODO: multiple MR
     sge = (struct ibv_sge *)calloc(1, sizeof(struct ibv_sge));
-    mr = get_mr_by_addr(rmem, addr);
 
-    sge->addr = (uint64_t)conn->mr[0].addr + addr;
+    sge->addr = (uint64_t)conn->mr[0].addr;
     sge->length = size;
     sge->lkey = conn->mr[0].lkey;
 
@@ -97,7 +96,7 @@ int rread (struct remote_mem * _rmem, void *buf, uint64_t addr, size_t size) {
     wr.sg_list = sge;
     wr.num_sge = 1;
 
-    wr.wr.rdma.remote_addr = (uint64_t)addr;
+    wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[0].addr + addr;
     wr.wr.rdma.rkey = conn->peerinfo->mr[0].rkey;
     wr.opcode = IBV_WR_RDMA_READ;
 
@@ -110,7 +109,7 @@ int rread (struct remote_mem * _rmem, void *buf, uint64_t addr, size_t size) {
     int need_poll = 1;
     while (need_poll) {
         while ((ret = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
-            break;
+            need_poll = 0;
         }
     }
 
@@ -128,20 +127,19 @@ int rwrite (struct remote_mem * rmem, void *buf, uint64_t addr, size_t size) {
 
     sge = (struct ibv_sge *)calloc(1, sizeof(struct ibv_sge));
 
-
-    sge->addr = (uint64_t)conn->mr[0].addr + addr;
+    sge->addr = (uint64_t)conn->mr[0].addr;
     sge->length = size;
     sge->lkey = conn->mr[0].lkey;
 
     memset(&wr, 0, sizeof(wr));
     // user tag
-    wr.wr_id = RMEM_RDMA_WRID_READ;
+    wr.wr_id = RMEM_RDMA_WRID_WRITE;
     wr.sg_list = sge;
     wr.num_sge = 1;
 
-    wr.wr.rdma.remote_addr = (uint64_t)addr;
+    wr.wr.rdma.remote_addr = (uint64_t)conn->peerinfo->mr[0].addr + addr;
     wr.wr.rdma.rkey = conn->peerinfo->mr[0].rkey;
-    wr.opcode = IBV_WR_RDMA_READ;
+    wr.opcode = IBV_WR_RDMA_WRITE;
 
     wr.send_flags = IBV_SEND_SIGNALED;
     wr.next = NULL;
@@ -152,7 +150,7 @@ int rwrite (struct remote_mem * rmem, void *buf, uint64_t addr, size_t size) {
     int need_poll = 1;
     while (need_poll) {
         while ((ret = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
-            break;
+            need_poll = 0;
         }
     }
 
