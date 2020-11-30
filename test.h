@@ -3,6 +3,9 @@
 
 #include <infiniband/verbs.h>
 
+// For gid
+#define RDMA_PROTOCOL_IB (0)
+
 struct rdma_conn {
     struct ibv_context* context;
     struct ibv_pd* pd;
@@ -13,6 +16,7 @@ struct rdma_conn {
     struct ibv_mr* mr;
 
     int port;
+    int gid;
     struct conn_info* peerinfo;
 };
 
@@ -63,8 +67,8 @@ struct config {
 extern struct config config;
 
 // network exchange info
-int client_exchange_info(struct rdma_conn *conn);
-int server_exchange_info(struct rdma_conn *conn);
+int client_exchange_info(struct rdma_conn *conn, char * url);
+int server_exchange_info(struct rdma_conn *conn, char * url);
 
 // test_config
 int parse_config(int argc, char *argv[]);

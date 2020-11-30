@@ -19,7 +19,7 @@ static void fatal(const char *func)
     exit(1);
 }
 
-int client_exchange_info(struct rdma_conn *conn) {
+int client_exchange_info(struct rdma_conn *conn, char * url) {
     nng_socket sock;
     int rv;
     int send_size, bytes;
@@ -28,7 +28,7 @@ int client_exchange_info(struct rdma_conn *conn) {
     int size = 1024*1024*64;
 
 
-    printf("connecting to server %s...\n", config.server_url);
+    printf("connecting to server %s...\n", url);
     if ((rv = nng_req0_open(&sock)) < 0) {
         fatal("nn_socket");
     }
@@ -38,7 +38,7 @@ int client_exchange_info(struct rdma_conn *conn) {
         fatal("nng_setopt_size");
     }
 
-    if ((rv = nng_dial(sock, config.server_url, NULL, 0)) < 0) {
+    if ((rv = nng_dial(sock, url, NULL, 0)) < 0) {
         fatal("nn_connect");
     }
 
@@ -62,7 +62,7 @@ int client_exchange_info(struct rdma_conn *conn) {
     return 0;
 }
 
-int server_exchange_info(struct rdma_conn *conn) {
+int server_exchange_info(struct rdma_conn *conn, char * url) {
     int send_size, rv;
     size_t recv_size;
     void *info, *peerinfo = NULL;
@@ -73,14 +73,14 @@ int server_exchange_info(struct rdma_conn *conn) {
             fatal("nn_socket");
         }
 
-        if ((rv = nng_listen(sock, config.server_listen_url, NULL, 0)) < 0) {
+        if ((rv = nng_listen(sock, url, NULL, 0)) < 0) {
             fatal("nn_bind");
         }
 
         sock_init = 1;
     }
 
-    printf("listening on server %s...\n", config.server_listen_url);
+    printf("listening on server %s...\n", url);
     if ((rv = nng_recv(sock, &peerinfo, &recv_size, NNG_FLAG_ALLOC)) < 0) {
         fatal("nn_recv");
     }

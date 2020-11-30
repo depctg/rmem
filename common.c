@@ -120,9 +120,9 @@ int qp_stm_init_to_rtr(struct rdma_conn *conn) {
     qp_attr.dest_qp_num = conn->peerinfo->qp_number;
     qp_attr.ah_attr.dlid = conn->peerinfo->local_id;
 
-    if (config.use_roce) {
+    if (conn->gid != RDMA_PROTOCOL_IB) {
         qp_attr.ah_attr.is_global = 1;
-        qp_attr.ah_attr.grh.sgid_index = config.gid_idx;
+        qp_attr.ah_attr.grh.sgid_index = conn->gid;
         qp_attr.ah_attr.grh.dgid = conn->peerinfo->gid;
         qp_attr.ah_attr.grh.hop_limit = 0xFF;
         qp_attr.ah_attr.grh.traffic_class = 0;
@@ -131,7 +131,7 @@ int qp_stm_init_to_rtr(struct rdma_conn *conn) {
     ret = ibv_modify_qp(conn->qp, &qp_attr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER);
 
     if (ret != 0) {
-        printf("rtr fail %d, roce %d\n", ret, config.use_roce);
+        printf("rtr fail %d, roce %d\n", ret, gid);
         return -1;
     }
 
@@ -166,10 +166,10 @@ int extract_info(struct rdma_conn *conn, void **buf) {
     *buf = calloc(1, info_size);
     struct conn_info *info = (struct conn_info*) *buf;
 
-    if (config.use_roce) {
-        union ibv_gid gid;
-        ibv_query_gid(conn->context, conn->port, config.gid_idx, &gid);
-        info->gid = gid;
+    if (conn->gid != RDMA_PROTOCOL_IB) {
+        union ibv_gid gids;
+        ibv_query_gid(conn->context, conn->port, conn->gid, &gids);
+        info->gid = gids;
     } else {
         struct ibv_port_attr port_attr;
         ibv_query_port(conn->context, conn->port, &port_attr);

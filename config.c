@@ -20,7 +20,8 @@ int parse_config(int argc, char *argv[]) {
     // config.server_mr_size = 4096 * 8;
 
     config.server_num_mr = 16;
-    config.server_mr_size = (size_t)1024 * 1024 * 1024;
+    // config.server_mr_size = (size_t)1024 * 1024 * 1024;
+    config.server_mr_size = (size_t)1024 * 1024;
 
     // set ib info
     config.server.num_devices = 2;
@@ -36,7 +37,7 @@ int parse_config(int argc, char *argv[]) {
     config.server_url = "tcp://wuklab-01.ucsd.edu:2345";
     config.server_listen_url = "tcp://*:2345";
 
-    config.server_enable_odp = 0;
+    config.server_enable_odp = 1;
     config.server_multi_conn = 1;
 
     // parse arg

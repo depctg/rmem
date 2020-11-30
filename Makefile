@@ -1,20 +1,21 @@
 .PHONY: clean
 
 NETLIB  ?= net-nng.o
+RMEMIMPL ?= rmem-rdma.c
 
 CFLAGS  := -Werror -g
 LD      := gcc
 LDLIBS  := ${LDLIBS} -libverbs -lpthread -lnng
 
-APPS    := client server
-COMMON  := config.o common.o $(NETLIB)
+APPS    := arrayclient arrayserver
+COMMON  := config.o common.o rarray.o $(NETLIB) $(RMEMIMPL)
 
 all: ${APPS}
 
-client: client.c $(COMMON)
+arrayclient: arrayclient.c $(COMMON)
 	${LD} -o $@ $^ ${LDLIBS}
 
-server: server.c $(COMMON)
+arrayserver: arrayserver.c $(COMMON)
 	${LD} -o $@ $^ ${LDLIBS}
 
 clean:
