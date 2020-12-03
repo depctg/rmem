@@ -70,6 +70,7 @@ struct config {
     char *server_rdma_write_url;
 
     int jpg_size;
+    int legomem;
 };
 
 extern struct config config;

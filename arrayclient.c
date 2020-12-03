@@ -20,12 +20,39 @@ int main(int argc, char *argv[]) {
 
     parse_config(argc, argv);
 
-    // create array
-    rarray = rinit(RMEM_ACCESS_READ,  (size_t)1024*1024*1024, config.server_rdma_read_url);
-    rbuf = rcreatebuf(rarray, buffer_size);
+    if (config.legomem) {
+        rarray = rinit(RMEM_ACCESS_READ | RMEM_ACCESS_WRITE,  (size_t)1024*1024*1024, NULL);
+        warray = rarray;
 
-    warray = rinit(RMEM_ACCESS_WRITE, (size_t)1024*1024*1024, config.server_rdma_write_url);
-    wbuf = rcreatebuf(warray, buffer_size);
+        ralloc(rarray, NULL, 0, 1024*1024);
+        ralloc(rarray, NULL, 1, 1024*1024);
+
+        rbuf = malloc(buffer_size);
+        wbuf = rcreatebuf(rarray, buffer_size);
+
+        // one special client will write the cat image...
+        if (config.program != NULL) {
+            int jpg_size = config.jpg_size;
+            void * jpg = malloc(config.array_cell_size);
+            FILE *jpg_file = fopen("./data/cat.jpg", "r");
+
+            fread(jpg, 1, jpg_size, jpg_file);
+            fclose(jpg_file);
+
+            memcpy(buf, jpg, jpg_size);
+            rarray_write(rarray, wbuf, i, jpg_size);
+            return 0;
+        }
+
+    } else {
+        // create array
+        rarray = rinit(RMEM_ACCESS_READ,  (size_t)1024*1024*1024, config.server_rdma_read_url);
+        rbuf = rcreatebuf(rarray, buffer_size);
+
+        warray = rinit(RMEM_ACCESS_WRITE, (size_t)1024*1024*1024, config.server_rdma_write_url);
+        wbuf = rcreatebuf(warray, buffer_size);
+    }
+
 
     clock_gettime(CLOCK_MONOTONIC, &tstart);
     for (size_t i = 0; i < num_iter; i++) {
