@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "jpeglib.h"
 
@@ -21,15 +22,17 @@ int main(int argc, char *argv[]) {
     parse_config(argc, argv);
 
     // create array
-    rarray = rinit(RMEM_ACCESS_READ,  (size_t)1024*1024*1024, config.server_rdma_read_url);
+    rarray = rinit(RMEM_ACCESS_READ,  (size_t)1024*1024, config.server_rdma_read_url);
     rbuf = rcreatebuf(rarray, buffer_size);
 
-    warray = rinit(RMEM_ACCESS_WRITE, (size_t)1024*1024*1024, config.server_rdma_write_url);
+    warray = rinit(RMEM_ACCESS_WRITE, (size_t)1024*1024, config.server_rdma_write_url);
     wbuf = rcreatebuf(warray, buffer_size);
+
+    sleep(5);
 
     clock_gettime(CLOCK_MONOTONIC, &tstart);
     for (size_t i = 0; i < num_iter; i++) {
-        rarray_read(rarray, rbuf, i, config.jpg_size);
+        rarray_read(rarray, rbuf, 0, config.jpg_size);
 
         // printf("get cat at %p, %02x %02x\n", rbuf, ((char*)rbuf)[0], ((char*)rbuf)[1]);
 
@@ -37,7 +40,7 @@ int main(int argc, char *argv[]) {
 
         // printf("decode size %d\n", output_size);
 
-        rarray_write(warray, wbuf, i, output_size);
+        rarray_write(warray, wbuf, 0, output_size);
     }
     clock_gettime(CLOCK_MONOTONIC, &tend);
 
