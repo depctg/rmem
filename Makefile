@@ -1,11 +1,11 @@
 .PHONY: clean
 
-NETLIB  ?= net-nng.o
+NETLIB  ?= net.o
 RMEMIMPL ?= rmem-rdma.c
 
 CFLAGS  := -Werror -g
 LD      := gcc
-LDLIBS  := ${LDLIBS} -libverbs -lpthread -lnng -ljpeg
+LDLIBS  := ${LDLIBS} -libverbs -lpthread -lnanomsg -ljpeg
 
 APPS    := arrayclient arrayserver
 COMMON  := config.o common.o rarray.o $(NETLIB) $(RMEMIMPL)

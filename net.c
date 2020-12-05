@@ -17,14 +17,14 @@ static void fatal(const char *func)
         exit(1);
 }
 
-int client_exchange_info(struct rdma_conn *conn) {
+int client_exchange_info(struct rdma_conn *conn, char * url) {
     int sock, rv;
     int send_size, bytes;
     void *info, *peerinfo = NULL;
     int size = 1024*1024*64;
 
 
-    printf("connecting to server %s...\n", config.server_url);
+    printf("connecting to server %s...\n", url);
     if ((sock = nn_socket(AF_SP, NN_REQ)) < 0) {
         fatal("nn_socket");
     }
@@ -64,7 +64,7 @@ int client_exchange_info(struct rdma_conn *conn) {
     return 0;
 }
 
-int server_exchange_info(struct rdma_conn *conn) {
+int server_exchange_info(struct rdma_conn *conn, char * url) {
     int send_size, bytes;
     void *info, *peerinfo = NULL;
     int size = 1024*1024*64;
@@ -86,7 +86,7 @@ int server_exchange_info(struct rdma_conn *conn) {
             fatal("nng_setopt_size");
         }
 
-        if ((rv_connect = nn_bind(sock, config.server_listen_url)) < 0) {
+        if ((rv_connect = nn_bind(sock, url)) < 0) {
             fatal("nn_bind");
         }
 
