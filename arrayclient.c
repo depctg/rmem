@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
 
         // printf("get cat at %p, %02x %02x\n", rbuf, ((char*)rbuf)[0], ((char*)rbuf)[1]);
 
+	for (int i= 0; i < 15; i++) job(rbuf,wbuf);
         int output_size = job(rbuf, wbuf);
 
         // printf("decode size %d\n", output_size);
