@@ -12,8 +12,8 @@ int parse_config(int argc, char *argv[]) {
 
     config.cq_size = 16;
     // for ib servers, use 0
-    config.use_roce = 0;
-    config.gid_idx = 0;
+    config.use_roce = 1;
+    config.gid_idx = 1;
 
     config.client_mr_size = 1024 * 1024 * 64;
     // config.server_num_mr = 1024 * 512;
@@ -23,25 +23,25 @@ int parse_config(int argc, char *argv[]) {
     config.server_mr_size = (size_t)1024 * 1024 * 1024;
 
     // set ib info
-    config.server.num_devices = 2;
+    config.server.num_devices = 1;
     config.server.port = 1;
-    config.server.device_name = "mlx5_1";
+    config.server.device_name = "mlx4_0";
 
-    config.client.num_devices = 2;
+    config.client.num_devices = 1;
     config.client.port = 1;
-    config.client.device_name = "mlx5_1";
+    config.client.device_name = "mlx4_0";
 
     // test parameters
     config.request_size = 64;
-    config.server_url = "tcp://wuklab-01.ucsd.edu:2345";
+    config.server_url = "tcp://wuklab-03:2345";
     config.server_listen_url = "tcp://*:2345";
 
     config.server_enable_odp = 0;
     config.server_multi_conn = 1;
 
     // application
-    config.server_rdma_read_url = "tcp://wuklab-01.ucsd.edu:5300";
-    config.server_rdma_write_url = "tcp://wuklab-01.ucsd.edu:5301";
+    config.server_rdma_read_url = "tcp://wuklab-03:12300";
+    config.server_rdma_write_url = "tcp://wuklab-03:12301";
 
     config.array_cell_size = 1024 * 1024;
     config.jpg_size = 20016;

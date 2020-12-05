@@ -12,6 +12,7 @@ int server() {
     struct rdma_conn conn;
     memset(&conn, 0, sizeof(struct rdma_conn));
     conn.port = config.server.port;
+    conn.gid = config.gid_idx;
 
     // TODO: goto common
     create_context(&config.server, &conn);

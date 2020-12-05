@@ -122,6 +122,7 @@ int qp_stm_init_to_rtr(struct rdma_conn *conn) {
     qp_attr.ah_attr.dlid = conn->peerinfo->local_id;
 
     if (conn->gid != RDMA_PROTOCOL_IB) {
+	printf("use RTR gid %d\n", conn->gid);
         qp_attr.ah_attr.is_global = 1;
         qp_attr.ah_attr.grh.sgid_index = conn->gid;
         qp_attr.ah_attr.grh.dgid = conn->peerinfo->gid;

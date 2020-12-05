@@ -40,7 +40,7 @@ int client_exchange_info(struct rdma_conn *conn, char * url) {
         fatal("nng_setopt_size");
     }
 
-    if ((rv = nn_connect(sock, config.server_url)) < 0) {
+    if ((rv = nn_connect(sock, url)) < 0) {
         fatal("nn_connect");
     }
 
