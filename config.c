@@ -20,7 +20,7 @@ int parse_config(int argc, char *argv[]) {
     // config.server_mr_size = 4096 * 8;
 
     config.server_num_mr = 16;
-    config.server_mr_size = (size_t)1024 * 1024 * 1024;
+    config.server_mr_size = (size_t)1024 * 1024 * 4;
 
     // set ib info
     config.server.num_devices = 1;
@@ -48,7 +48,7 @@ int parse_config(int argc, char *argv[]) {
 
     // parse arg
     int opt;
-    while ((opt = getopt(argc, argv, "m:s:p:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "m:s:p:l:t:")) != -1) {
         switch(opt) {
             case 'l':
                 config.server_listen_url = optarg;
@@ -61,6 +61,10 @@ int parse_config(int argc, char *argv[]) {
             case 's':
                 config.server_mr_size = atoi(optarg);
                 printf("set server_mr_size = %lu\n", config.server_mr_size);
+                break;
+            case 't':
+                config.threads = atoi(optarg);
+                printf("set threads = %lu\n", config.threads);
                 break;
             case 'p':
                 config.program = optarg;

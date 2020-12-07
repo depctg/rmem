@@ -108,9 +108,8 @@ int rread (struct remote_mem * _rmem, void *buf, uint64_t addr, size_t size) {
     // TODO: WHEN DO WE POLL?
     int need_poll = 1;
     while (need_poll) {
-        while ((ret = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
-            need_poll = 0;
-        }
+        while ((ret = ibv_poll_cq(conn->cq, 1, &wc)) == 0);
+        need_poll = 0;
     }
 
     // TODO: free SGE?
@@ -149,9 +148,8 @@ int rwrite (struct remote_mem * rmem, void *buf, uint64_t addr, size_t size) {
     // TODO: WHEN DO WE POLL?
     int need_poll = 1;
     while (need_poll) {
-        while ((ret = ibv_poll_cq(conn->cq, 1, &wc)) == 0) {
-            need_poll = 0;
-        }
+        while ((ret = ibv_poll_cq(conn->cq, 1, &wc)) == 0);
+        need_poll = 0;
     }
 
     // TODO: free SGE?
