@@ -13,64 +13,84 @@
 #include "rmem.h"
 #include "rarray.h"
 
-const int buffer_size = 1024*1024*4;
-const int num_iter = 1024 * 16;
+const int buffer_size = 1024*1024;
+const int num_iter = 1024 * 4;
+
 
 static int job(void * sbuf, void *tbuf);
 void * threadtask(void * args);
 
 pthread_barrier_t barr;
 
+static const int num_cores = 25;
+
 // program
 int main(int argc, char *argv[]) {
 
     parse_config(argc, argv);
 
-    pthread_t threads[1024];
-    int num_threads = config.threads;
+    int num_threads = num_cores;
     cpu_set_t cpus;
+    pthread_t threads[num_cores];
 
-    pthread_barrier_init(&barr, NULL, num_threads);
-    for (int i = 0; i < num_threads; i++) {
-            CPU_ZERO(&cpus);
-	    CPU_SET(i, &cpus);
+    pthread_barrier_init(&barr, NULL, num_cores);
+    for (int i = 0; i < num_cores; i++) {
+        CPU_ZERO(&cpus);
+	    CPU_SET(i + 1, &cpus);
 
-	    pthread_create(&threads[i], NULL, threadtask, NULL);
+	    pthread_create(&threads[i], NULL, threadtask, (void *)(uintptr_t)i);
 	    pthread_setaffinity_np(threads[i], sizeof(cpu_set_t), &cpus);
     }
 
-    for (int i = 0; i < num_threads; i++)
+    for (int i = 0; i < num_cores; i++)
         pthread_join(threads[i], NULL);
     return 0;
 
 } 
 
 void * threadtask(void * args) {
-    void *rbuf, *wbuf;
-    struct remote_mem *rarray, *warray;
+    void *rbuf[1024], *wbuf[1024];
+    struct remote_mem *rarray[1024], *warray[1024];
     struct timespec tstart={0,0}, tend={0,0};
 
-    // create array
-    rarray = rinit(RMEM_ACCESS_READ,  (size_t)1024*1024, config.server_rdma_read_url);
-    rbuf = rcreatebuf(rarray, buffer_size);
+    int num_threads = config.threads / num_cores;
+    int thread_id = (uintptr_t)args;
 
-    warray = rinit(RMEM_ACCESS_WRITE, (size_t)1024*1024, config.server_rdma_write_url);
-    wbuf = rcreatebuf(warray, buffer_size);
+    // create array
+    for (int i = 0; i < num_threads; i++) {
+        rarray[i] = rinit(RMEM_ACCESS_READ,  (size_t)1024*1024, config.server_rdma_read_url);
+        rbuf[i] = rcreatebuf(rarray[i], buffer_size);
+
+        warray[i] = rinit(RMEM_ACCESS_WRITE, (size_t)1024*1024, config.server_rdma_write_url);
+        wbuf[i] = rcreatebuf(warray[i], buffer_size);
+    }
 
     pthread_barrier_wait(&barr);
 
+    // printf("starting thread %d with %d sub-threads ...\n", thread_id, num_threads);
+
     clock_gettime(CLOCK_MONOTONIC, &tstart);
+    // TODO: select client here
     for (size_t i = 0; i < num_iter; i++) {
-        rarray_read(rarray, rbuf, 0, config.jpg_size);
+        int cur_thread = i % num_threads;
+//		printf("on thread %d, iter %i\n", thread_id, i);
+
+        rarray_read(rarray[cur_thread], rbuf[cur_thread], 0, config.jpg_size);
+		//printf("on thread %d, iter %i AFTER READ\n", thread_id, i);
 
         // printf("get cat at %p, %02x %02x\n", rbuf, ((char*)rbuf)[0], ((char*)rbuf)[1]);
 
 	// for (int i= 0; i < 15; i++) job(rbuf,wbuf);
-        int output_size = job(rbuf, wbuf);
+        int output_size = job(rbuf[cur_thread], wbuf[cur_thread]);
+        // int output_size = 196628;
+        // usleep(300);
+		// printf("on thread %d, iter %i AFTER SLEEP\n", thread_id, i);
 
         // printf("decode size %d\n", output_size);
 
-        rarray_write(warray, wbuf, 0, output_size);
+        rarray_write(warray[cur_thread], wbuf[cur_thread], 0, output_size);
+		// printf("on thread %d, iter %i AFTER WRITE\n", thread_id, i);
+
     }
     clock_gettime(CLOCK_MONOTONIC, &tend);
 

@@ -10,7 +10,7 @@ int parse_config(int argc, char *argv[]) {
     // fill in config here
     memset(&config, 0, sizeof(struct config));
 
-    config.cq_size = 16;
+    config.cq_size = 32;
     // for ib servers, use 0
     config.use_roce = 1;
     config.gid_idx = 1;
